@@ -1,0 +1,45 @@
+# iyulab/forge-releases-plan/.github/workflows/build.yml
+#
+# Caller workflow — delegates the actual build/sign/release pipeline to the
+# reusable workflow hosted in iyulab/forge-releases-lens. Per-app GitHub
+# Releases land in THIS repo because `uses:` runs in the caller's context.
+#
+# forge-plan is the 7th Forge app and the only DUAL-engine app: the reusable
+# build.yml builds the .NET ForgePlan.Engine AND (guarded on app==plan) the
+# Rust plan-engine via `npm run build:engine-rs`.
+#
+# See iyulab/forge-releases-lens/.github/workflows/build.yml for the flow.
+
+name: Build & Release
+
+on:
+  # Forwarded from iyulab/forge/.github/workflows/release.yml on tag push or
+  # manual dispatch. The dispatcher targets this repo because the app key
+  # is encoded in the repo name (forge-releases-plan).
+  repository_dispatch:
+    types: [build-release]
+  # Manual hot-fix run. Version is taken from the dispatched payload below;
+  # for ad-hoc runs supply it inline.
+  workflow_dispatch:
+    inputs:
+      version:
+        description: Release version (e.g. 0.1.0)
+        required: true
+        type: string
+      sha:
+        description: iyulab/forge commit sha (default main HEAD)
+        required: false
+        type: string
+        default: ""
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    uses: iyulab/forge-releases-lens/.github/workflows/build.yml@main
+    with:
+      app: plan
+      version: ${{ github.event.client_payload.version || inputs.version }}
+      sha: ${{ github.event.client_payload.sha || inputs.sha || '' }}
+    secrets: inherit
